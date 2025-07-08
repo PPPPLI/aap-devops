@@ -16,22 +16,6 @@ cache:
 ####################
 # 📊 Run SonarQube test analysis
 ####################
-test:
-  stage: test
-  tags:
-    - payment
-  image: maven:3.9-eclipse-temurin-17
-  script:
-    - echo "📊 Running SonarQube analysis"
-    - mvn $MAVEN_CLI_OPTS sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
-  only:
-    - merge_requests
-    - main
-    - develop
-
-####################
-# 🔨 Build all services + Common
-####################
 build_and_test:
   stage: build
   tags:
@@ -44,7 +28,33 @@ build_and_test:
       mvn $MAVEN_CLI_OPTS clean install &&
       cd .. ;
       done
+  artifacts:
+    paths:
+      - Common/target/
+      - Authentication-8083/target/
+      - Gateway-9090/target/
+      - Order-8082/target/
+      - Payment-8081/target/
+      - Product-8080/target/
+    expire_in: 1h
 
+######################
+# 📊 SonarQube Analysis (after build)
+######################
+sonarqube_analysis:
+  stage: test
+  tags:
+    - payment
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - echo "📊 Running SonarQube analysis"
+    - mvn $MAVEN_CLI_OPTS sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
+  dependencies:
+    - build_and_test  # 👈 确保能拿到构建好的 target/ 目录
+  only:
+    - merge_requests
+    - main
+    - develop
 ####################
 # 🐳 Docker 构建 & 推送
 ####################
