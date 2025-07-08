@@ -33,8 +33,6 @@ public class SecurityConfig{
 
         http.addFilterBefore(webSecurityFilter, UsernamePasswordAuthenticationFilter.class);
 
-        http.csrf(AbstractHttpConfigurer::disable);
-
         http.authorizeHttpRequests(req ->{
 
            req.requestMatchers("/auth/login").permitAll()

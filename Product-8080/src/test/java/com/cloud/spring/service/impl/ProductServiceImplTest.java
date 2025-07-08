@@ -8,19 +8,62 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 
-@SpringBootTest(classes = Main8084.class)
+import com.cloud.spring.repository.ProductRepository;
+import com.cloud.spring.service.impl.ProductServiceImpl;
+import com.cloud.spring.sharedEntity.Product;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 class ProductServiceImplTest {
 
-    @Resource
-    ProductService productService;
+    @InjectMocks
+    private ProductServiceImpl productService;
+
+    @Mock
+    private ProductRepository productRepository;
+
+    private Product sampleProduct;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+
+        sampleProduct = Product.builder()
+                .productId(UUID.randomUUID())
+                .productName("MacBook")
+                .productDescription("Apple laptop")
+                .productPrice(1299.99)
+                .productQuantity(10)
+                .productUrl("https://example.com/macbook.jpg")
+                .build();
+    }
 
     @Test
-    void addProduct() {
+    void testAddProduct() {
+        when(productRepository.save(sampleProduct)).thenReturn(sampleProduct);
 
-        Product product = Product.builder().productName("INTERFINE").productPrice(4.99).productQuantity(79)
-                .productDescription("Demi-couronne artificielle, 45 cm")
-                        .productUrl("/static/article3.png").build();
+        Product result = productService.addProduct(sampleProduct);
 
-        productService.addProduct(product);
+        assertNotNull(result);
+        assertEquals("MacBook", result.getProductName());
+        verify(productRepository, times(1)).save(sampleProduct);
+    }
+
+    @Test
+    void testGetAllProducts() {
+        when(productRepository.findAll()).thenReturn(List.of(sampleProduct));
+
+        List<Product> result = productService.getAllProducts();
+
+        assertEquals(1, result.size());
+        assertEquals("MacBook", result.get(0).getProductName());
+        verify(productRepository, times(1)).findAll();
     }
 }
