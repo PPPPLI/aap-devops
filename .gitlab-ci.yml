@@ -52,10 +52,15 @@ docker_build_push:
   stage: docker
   tags:
     - payment
+  image: docker:24.0.7
+  services:
+    - docker:24.0.7-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
     - echo "🔐 Logging into Docker registry"
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
-
     - echo "🐳 Building & pushing images with tag $DOCKER_TAG"
     - for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
       IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]') ;
@@ -64,7 +69,6 @@ docker_build_push:
       done
   only:
     - main
-
 ####################
 # 🚀 远程部署
 ####################
