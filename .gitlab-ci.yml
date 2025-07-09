@@ -26,15 +26,6 @@ build_and_test:
     - echo "📁 当前目录：" && pwd && ls -al
     - echo "🔨 使用父模块构建所有服务"
     - mvn $MAVEN_CLI_OPTS clean install
-  artifacts:
-    paths:
-      - Common/target/*.jar
-      - Authentication-8083/target/*.jar
-      - Gateway-9090/target/*.jar
-      - Order-8082/target/*.jar
-      - Payment-8081/target/*.jar
-      - Product-8080/target/*.jar
-    expire_in: 1h
 
 ######################
 # 📊 SonarQube Analysis (after build)
