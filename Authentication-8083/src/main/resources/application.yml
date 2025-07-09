@@ -7,7 +7,7 @@ spring:
 
   cloud:
     consul:
-      host: 4.233.150.100
+      host: consul_back
       port: 8500
       discovery:
         service-name: ${spring.application.name}
