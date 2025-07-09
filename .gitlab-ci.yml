@@ -33,12 +33,8 @@ build_and_test:
     - find . -name "*.jar"
     - du -h $(find . -name "*.jar")
     - echo "📆 打包构建产物为 ZIP"
-    - zip -r build_output.zip \
-      Authentication-8083/target/*.jar \
-      Gateway-9090/target/*.jar \
-      Order-8082/target/*.jar \
-      Payment-8081/target/*.jar \
-      Product-8080/target/*.jar
+    - zip -r build_output.zip Authentication-8083/target/*.jar Gateway-9090/target/*.jar Order-8082/target/*.jar Payment-8081/target/*.jar Product-8080/target/*.jar
+
   artifacts:
     paths:
       - build_output.zip
