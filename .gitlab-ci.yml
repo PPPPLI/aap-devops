@@ -37,8 +37,10 @@ test:
   script:
     - echo "📊 Running SonarQube analysis"
     - mvn $MAVEN_CLI_OPTS sonar:sonar \
+      -Dsonar.projectKey=order-payment \
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$SONAR_TOKEN
+
   only:
     - merge_requests
     - main
