@@ -23,16 +23,9 @@ build_and_test:
   tags:
     - payment
   script:
-    - echo "📁 当前工作目录：" && pwd && ls -al
-    - echo "🔨 Installing Common module"
-    - cd Common && mvn $MAVEN_CLI_OPTS clean install && cd ..
-    - echo "🔨 Building other modules"
-    - for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
-      echo "📦 Building $dir" &&
-      cd $dir &&
-      mvn $MAVEN_CLI_OPTS clean install &&
-      cd .. ;
-      done
+    - echo "📁 当前目录：" && pwd && ls -al
+    - echo "🔨 使用父模块构建所有服务"
+    - mvn $MAVEN_CLI_OPTS clean install
   artifacts:
     paths:
       - Common/target/
@@ -46,66 +39,42 @@ build_and_test:
 ######################
 # 📊 SonarQube Analysis (after build)
 ######################
-sonarqube_analysis:
+test:
   stage: test
-  tags:
-    - payment
-  image: maven:3.9-eclipse-temurin-17
   script:
     - echo "📊 Running SonarQube analysis"
-    - mvn $MAVEN_CLI_OPTS sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
-  dependencies:
-    - build_and_test  # 👈 确保能拿到构建好的 target/ 目录
+    - mvn $MAVEN_CLI_OPTS sonar:sonar \
+      -Dsonar.host.url=$SONAR_HOST_URL \
+      -Dsonar.login=$SONAR_TOKEN
   only:
     - merge_requests
     - main
     - develop
-####################
+
 # 🐳 Docker 构建 & 推送
 ####################
 docker_build_push:
   stage: docker
-  tags:
-    - payment
   script:
     - echo "🔐 Logging into Docker registry"
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
 
     - echo "🐳 Building & pushing images with tag $DOCKER_TAG"
-    - declare -A services=( \
-      ["authentication-8083"]="Authentication-8083" \
-      ["gateway-9090"]="Gateway-9090" \
-      ["order-8082"]="Order-8082" \
-      ["payment-8081"]="Payment-8081" \
-      ["product-8080"]="Product-8080" \
-      )
-    - for service in "${!services[@]}"; do
-      module=${services[$service]} ;
-      dockerfile_name=Dockerfile_$(echo $service | cut -d'-' -f1 | awk '{print toupper(substr($0,0,1)) substr($0,2)}') ;
-      jar_path="$module/target/$module-1.0-SNAPSHOT.jar" ;
-      docker build -f Docker/$dockerfile_name --build-arg JAR_PATH=$jar_path -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$service:$DOCKER_TAG . ;
-      docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$service:$DOCKER_TAG ;
+    - for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
+      IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]') ;
+      docker build -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG $dir ;
+      docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG ;
       done
   only:
     - main
-  artifacts:
-    paths:
-      - Authentication-8083/target/
-      - Gateway-9090/target/
-      - Order-8082/target/
-      - Payment-8081/target/
-      - Product-8080/target/
-    expire_in: 1h
 
 ####################
 # 🚀 远程部署
 ####################
 deploy_to_server:
   stage: deploy
-  tags:
-    - payment
   before_script:
-    - apt-get update && apt-get install -y openssh-client
+    - apk add --no-cache openssh
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
