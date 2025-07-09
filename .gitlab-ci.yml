@@ -58,7 +58,8 @@ docker_build_push:
   tags:
     - payment
   services:
-    - docker:24.0.7-dind
+    - name: docker:24.0.7-dind
+      command: ["--insecure-registry=34.155.208.12:8080"]
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
