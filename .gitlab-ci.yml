@@ -28,12 +28,12 @@ build_and_test:
     - mvn $MAVEN_CLI_OPTS clean install
   artifacts:
     paths:
-      - Common/target/
-      - Authentication-8083/target/
-      - Gateway-9090/target/
-      - Order-8082/target/
-      - Payment-8081/target/
-      - Product-8080/target/
+      - Common/target/*.jar
+      - Authentication-8083/target/*.jar
+      - Gateway-9090/target/*.jar
+      - Order-8082/target/*.jar
+      - Payment-8081/target/*.jar
+      - Product-8080/target/*.jar
     expire_in: 1h
 
 ######################
