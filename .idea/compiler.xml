@@ -11,8 +11,8 @@
         <module name="Order-8082" />
         <module name="Authentication-8083" />
         <module name="Gateway-9090" />
-        <module name="Commom" />
         <module name="Payment-8081" />
+        <module name="Common" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>

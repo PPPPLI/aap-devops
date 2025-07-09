@@ -13,6 +13,10 @@ cache:
   paths:
     - .m2/repository
 
+default:
+  git:
+    depth: 0
+
 ####################
 # 📊 Run SonarQube test analysis
 ####################
@@ -21,8 +25,9 @@ build_and_test:
   tags:
     - payment
   script:
+    - echo "📁 当前工作目录：" && pwd && ls -al
     - echo "🔨 Installing Common module"
-    - cd Commom && mvn $MAVEN_CLI_OPTS clean install && cd ..
+    - cd Common && mvn $MAVEN_CLI_OPTS clean install && cd ..
     - echo "🔨 Building other modules"
     - for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
       echo "📦 Building $dir" &&
@@ -32,7 +37,7 @@ build_and_test:
       done
   artifacts:
     paths:
-      - Commom/target/
+      - Common/target/
       - Authentication-8083/target/
       - Gateway-9090/target/
       - Order-8082/target/

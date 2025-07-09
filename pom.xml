@@ -12,7 +12,7 @@
         <module>Authentication-8083</module>
         <module>Gateway-9090</module>
         <module>Order-8082</module>
-        <module>Commom</module>
+        <module>Common</module>
         <module>Payment-8081</module>
         <module>Product-8080</module>
     </modules>
