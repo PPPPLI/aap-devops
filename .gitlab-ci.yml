@@ -82,7 +82,6 @@ docker_build_push:
 # 🚀 远程部署
 ####################
 deploy_to_server:
-  image: alpine:latest
   stage: deploy
   tags:
     - payment
@@ -97,6 +96,7 @@ deploy_to_server:
     - echo "IMAGE_TAG=$CI_COMMIT_SHORT_SHA" > Docker/.env
 
     - echo "📤 Sending files to server"
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p /home/$DEPLOY_USER/app"
     - scp Docker/docker-compose.yml $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
     - scp Docker/.env $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
 
