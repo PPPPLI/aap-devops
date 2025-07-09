@@ -67,11 +67,14 @@ docker_build_push:
     - echo "🔐 Logging into Docker registry"
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
     - echo "🐳 Building & pushing images with tag $DOCKER_TAG"
-    - for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
-      IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]') ;
-      docker build -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG \
-      -f Docker/Dockerfile_${SERVICE} $dir
-      docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG ;
+    - |
+      for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
+        SERVICE=$(echo $dir | cut -d'-' -f1 | sed 's/Authentication/Auth/')
+        IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]')
+        echo "🚧 Building $IMAGE_NAME using Docker/Dockerfile_${SERVICE}"
+        docker build -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG \
+          -f Docker/Dockerfile_${SERVICE} $dir
+        docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG
       done
   only:
     - main
