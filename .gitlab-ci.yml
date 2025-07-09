@@ -101,10 +101,11 @@ deploy_to_server:
     - scp Docker/.env $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
 
     - echo "🚀 Remote docker-compose up"
-    - ssh $DEPLOY_USER@$DEPLOY_HOST <<EOF
-      cd /home/$DEPLOY_USER/app
-      docker compose pull
-      docker compose up -d
+    - |
+      ssh $DEPLOY_USER@$DEPLOY_HOST <<EOF
+        cd /home/$DEPLOY_USER/app
+        docker compose pull
+        docker compose up -d
       EOF
   only:
     - main
