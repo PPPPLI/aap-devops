@@ -21,8 +21,10 @@ build_and_test:
   tags:
     - payment
   script:
-    - echo "🔨 Building all modules including Common"
-    - for dir in Common Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
+    - echo "🔨 Installing Common module"
+    - cd Commom && mvn $MAVEN_CLI_OPTS clean install && cd ..
+    - echo "🔨 Building other modules"
+    - for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
       echo "📦 Building $dir" &&
       cd $dir &&
       mvn $MAVEN_CLI_OPTS clean install &&
@@ -30,7 +32,7 @@ build_and_test:
       done
   artifacts:
     paths:
-      - Common/target/
+      - Commom/target/
       - Authentication-8083/target/
       - Gateway-9090/target/
       - Order-8082/target/
