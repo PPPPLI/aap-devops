@@ -28,6 +28,9 @@ build_and_test:
     - echo "📁 当前目录：" && pwd && ls -al
     - echo "🔨 使用父模块构建所有服务"
     - mvn $MAVEN_CLI_OPTS clean install
+    - echo "📦 检查构建后的 jar 包"
+    - find . -name "*.jar"
+    - du -h $(find . -name "*.jar")
 
 ######################
 # 📊 SonarQube Analysis (after build)
