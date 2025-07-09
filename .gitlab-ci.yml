@@ -16,9 +16,7 @@ cache:
     - .m2/repository
 
 
-####################
-# 📊 Run SonarQube test analysis
-####################
+# Services build
 build_authentication:
   image: maven:3.9-eclipse-temurin-17
   stage: build
@@ -78,9 +76,8 @@ build_product:
     paths:
       - Product-8080/target/*.jar
     expire_in: 1 hour
-######################
-# 📊 SonarQube Analysis (after build)
-######################
+
+#SonarQube Analysis
 test:
   image: maven:3.9-eclipse-temurin-17
   stage: test
@@ -89,7 +86,7 @@ test:
 
   script:
 
-    - echo "📊 Running SonarQube analysis"
+    - echo "Running SonarQube analysis"
     - mvn $MAVEN_CLI_OPTS clean verify  sonar:sonar -Dsonar.projectKey=order-payment -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
 
 
@@ -98,8 +95,7 @@ test:
     - main
     - develop
 
-# 🐳 Docker 构建 & 推送
-####################
+# Docker image build and push
 docker_build_push:
   image: docker:24.0.7
   stage: docker
@@ -114,21 +110,18 @@ docker_build_push:
     - build_order
     - build_payment
     - build_product
-  before_script:
-    - apk add --no-cache unzip
-    - echo "🚚 略过回填 jar 操作，因为不再需要"
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "🔐 Logging into Docker registry"
+    - echo "Logging into Docker registry"
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
-    - echo "🐳 Building & pushing images with tag $DOCKER_TAG"
+    - echo "Building & pushing images with tag $DOCKER_TAG"
     - |
       for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
         SERVICE=$(echo $dir | cut -d'-' -f1 | sed 's/Authentication/Auth/')
         IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]')
-        echo "⚖️ Building $IMAGE_NAME using Docker/Dockerfile_${SERVICE}"
+        echo "Building $IMAGE_NAME using Docker/Dockerfile_${SERVICE}"
         docker build -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG \
           -f Docker/Dockerfile_${SERVICE} $dir
         docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG
@@ -137,9 +130,7 @@ docker_build_push:
     - main
 
 
-####################
-# 🚀 远程部署
-####################
+# Deploy
 deploy_to_server:
   stage: deploy
   tags:
@@ -151,15 +142,15 @@ deploy_to_server:
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
   script:
-    - echo "📦 Generating .env"
+    - echo "Generating .env"
     - echo "IMAGE_TAG=$CI_COMMIT_SHORT_SHA" > Docker/.env
 
-    - echo "📤 Sending files to server"
+    - echo "Sending files to server"
     - ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p /home/$DEPLOY_USER/app"
     - scp Docker/docker-compose.yml $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
     - scp Docker/.env $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
 
-    - echo "🚀 Remote docker-compose up"
+    - echo "Remote docker-compose up"
     - |
       ssh $DEPLOY_USER@$DEPLOY_HOST <<EOF
         cd /home/$DEPLOY_USER/app
@@ -168,3 +159,39 @@ deploy_to_server:
       EOF
   only:
     - main
+
+discord_notify_success:
+  image: curlimages/curl:latest
+  stage: deploy
+  tags:
+    - payment
+  needs:
+    - job: deploy_to_server
+  script:
+    - >
+      curl -H "Content-Type: application/json" \
+           -X POST \
+           -d "{\"content\": \"Le projet a été déployé avec succès ! Tag : $CI_COMMIT_SHORT_SHA 🚀\"}" \
+           $DISCORD_WEBHOOK
+  only:
+    - main
+  when: on_success
+
+
+discord_notify_failure:
+  image: curlimages/curl:latest
+  stage: deploy
+  tags:
+    - payment
+  needs:
+    - job: deploy_to_server
+  script:
+    - >
+      curl -H "Content-Type: application/json" \
+           -X POST \
+           -d "{\"content\": \"Le déploiement a échoué. Commit : $CI_COMMIT_SHORT_SHA\"}" \
+           $DISCORD_WEBHOOK
+  only:
+    - main
+  when: on_failure
+  allow_failure: true
