@@ -28,9 +28,13 @@ build_and_test:
     - echo "📁 当前目录：" && pwd && ls -al
     - echo "🔨 使用父模块构建所有服务"
     - mvn $MAVEN_CLI_OPTS clean install
-    - echo "📦 检查构建后的 jar 包"
-    - find . -name "*.jar"
-    - du -h $(find . -name "*.jar")
+  artifacts:
+    paths:
+      - Authentication-8083/target/*.jar
+      - Gateway-9090/target/*.jar
+      - Order-8082/target/*.jar
+      - Payment-8081/target/*.jar
+      - Product-8080/target/*.jar
 
 ######################
 # 📊 SonarQube Analysis (after build)
@@ -42,11 +46,8 @@ test:
     - payment
 
   script:
-    - echo "📊 Rebuilding before Sonar analysis"
-    - mvn $MAVEN_CLI_OPTS clean install -DskipTests
     - echo "📊 Running SonarQube analysis"
     - mvn $MAVEN_CLI_OPTS sonar:sonar -Dsonar.projectKey=order-payment -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
-
 
   only:
     - merge_requests
