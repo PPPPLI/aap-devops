@@ -35,6 +35,8 @@ test:
   tags:
     - payment
   script:
+    - echo "📊 Rebuilding before Sonar analysis"
+    - mvn $MAVEN_CLI_OPTS clean install -DskipTests
     - echo "📊 Running SonarQube analysis"
     - mvn $MAVEN_CLI_OPTS sonar:sonar -Dsonar.projectKey=order-payment -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
 
