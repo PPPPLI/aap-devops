@@ -25,6 +25,7 @@ build_and_test:
   tags:
     - payment
   script:
+    - apt-get update && apt-get install -y zip
     - echo "📁 当前目录：" && pwd && ls -al
     - echo "🔨 使用父模块构建所有服务"
     - mvn $MAVEN_CLI_OPTS clean install -DskipTests
