@@ -1,6 +1,7 @@
 stages:
+  - build
   - test
-  - build_and_docker
+  - docker
   - deploy
 
 variables:
@@ -9,62 +10,99 @@ variables:
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   DOCKER_TAG: $CI_COMMIT_SHORT_SHA
 
+
 cache:
   paths:
     - .m2/repository
 
+
+####################
+# 📊 Run SonarQube test analysis
+####################
+build_and_test:
+  image: maven:3.9-eclipse-temurin-17
+  stage: build
+  tags:
+    - payment
+  script:
+    - echo "📁 当前目录：" && pwd && ls -al
+    - echo "🔨 使用父模块构建所有服务"
+    - mvn $MAVEN_CLI_OPTS clean install -DskipTests
+    - echo "📆 检查构建后的 jar 包"
+    - find . -name "*.jar"
+    - du -h $(find . -name "*.jar")
+    - echo "📆 打包构建产物为 ZIP"
+    - zip -r build_output.zip \
+      Authentication-8083/target/*.jar \
+      Gateway-9090/target/*.jar \
+      Order-8082/target/*.jar \
+      Payment-8081/target/*.jar \
+      Product-8080/target/*.jar
+  artifacts:
+    paths:
+      - build_output.zip
+    expire_in: 1 hour
+
 ######################
-# 📊 SonarQube Analysis
-######################f
+# 📊 SonarQube Analysis (after build)
+######################
 test:
   image: maven:3.9-eclipse-temurin-17
   stage: test
   tags:
     - payment
+
   script:
     - echo "📊 Rebuilding before Sonar analysis"
     - mvn $MAVEN_CLI_OPTS clean install -DskipTests
     - echo "📊 Running SonarQube analysis"
-    - mvn $MAVEN_CLI_OPTS clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS sonar:sonar -Dsonar.projectKey=order-payment -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
+
+
   only:
     - merge_requests
     - main
     - develop
 
-#######################################
-# 🔨 Build & 🐳 Docker 构建 & 推送合并
-#######################################
-build_and_docker:
+# 🐳 Docker 构建 & 推送
+####################
+docker_build_push:
   image: docker:24.0.7
-  stage: build_and_docker
+  stage: docker
   tags:
     - payment
   services:
     - name: docker:24.0.7-dind
       command: ["--insecure-registry=34.155.208.12:8080"]
+  dependencies:
+    - build_and_test
+  before_script:
+    - apk add --no-cache unzip
+    - unzip build_output.zip -d build_output
+    - echo "🧹 解压后文件如下"
+    - ls -al build_output
+
+    # 回填 jar 到各模块目录
+    - cp build_output/Authentication-8083/target/*.jar Authentication-8083/target/ || true
+    - cp build_output/Gateway-9090/target/*.jar Gateway-9090/target/ || true
+    - cp build_output/Order-8082/target/*.jar Order-8082/target/ || true
+    - cp build_output/Payment-8081/target/*.jar Payment-8081/target/ || true
+    - cp build_output/Product-8080/target/*.jar Product-8080/target/ || true
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-  before_script:
-    - apk add --no-cache openjdk17 maven
   script:
     - echo "🔐 Logging into Docker registry"
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
-    - echo "🔨 Building JARs with Maven"
-    - mvn $MAVEN_CLI_OPTS clean install -DskipTests
-    - echo "🐳 Building & pushing Docker images with tag $DOCKER_TAG"
+    - echo "🐳 Building & pushing images with tag $DOCKER_TAG"
     - |
       for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
         SERVICE=$(echo $dir | cut -d'-' -f1 | sed 's/Authentication/Auth/')
         IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]')
-        JAR_FILE=$(find $dir/target -name "*.jar" | head -n 1)
-        echo "🚧 Building $IMAGE_NAME from $JAR_FILE"
+        echo "⚖️ Building $IMAGE_NAME using Docker/Dockerfile_${SERVICE}"
         docker build -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG \
-          --build-arg JAR_PATH=$JAR_FILE \
-          -f Docker/Dockerfile_${SERVICE} .
+          -f Docker/Dockerfile_${SERVICE} $dir
         docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG
-      done
   only:
     - main
 
@@ -84,10 +122,12 @@ deploy_to_server:
   script:
     - echo "📦 Generating .env"
     - echo "IMAGE_TAG=$CI_COMMIT_SHORT_SHA" > Docker/.env
+
     - echo "📤 Sending files to server"
     - ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p /home/$DEPLOY_USER/app"
     - scp Docker/docker-compose.yml $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
     - scp Docker/.env $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
+
     - echo "🚀 Remote docker-compose up"
     - |
       ssh $DEPLOY_USER@$DEPLOY_HOST <<EOF
