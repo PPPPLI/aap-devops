@@ -160,6 +160,7 @@ deploy_to_server:
   only:
     - main
 
+#Notification when success
 discord_notify_success:
   image: curlimages/curl:latest
   stage: deploy
@@ -171,13 +172,13 @@ discord_notify_success:
     - >
       curl -H "Content-Type: application/json" \
            -X POST \
-           -d "{\"content\": \"Le projet a été déployé avec succès ! Tag : $CI_COMMIT_SHORT_SHA 🚀\"}" \
+           -d "{\"content\": \"Le projet a été déployé avec succès ! Tag : $CI_COMMIT_SHORT_SHA\"}" \
            $DISCORD_WEBHOOK
   only:
     - main
   when: on_success
 
-
+#Notification when failed
 discord_notify_failure:
   image: curlimages/curl:latest
   stage: deploy
