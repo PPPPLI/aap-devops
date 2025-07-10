@@ -2,7 +2,12 @@
 
 <h3><b>Introduction</b></h3>
 
-Ce projet est un simple système de e-commerce. Il contient au total 4 services principaux(Authentification, Commande, Paiement, Produit), 1 Mysql, 1 Redis, 1 Gateway ainsi que 1 centre de gestion et d'orchestration des servies.
+Veuillez trouver les fichiers clés dans ce dépôt: 
+
+  - Tutoriel d'utilisation: Tutoriel_utilisation.pdf
+  - Capture d'écran sur différente scénarios: Captures
+
+Ce projet est un simple système de e-commerce. Il contient au total 4 services principaux(Authentification, Commande, Paiement, Produit), 1 Mysql, 1 Redis, 1 Gateway ainsi que 1 centre de gestion et d'orchestration des servies. Malheuresement, il est un projet du côté serveur, et il ne posséde pas d'une jolie interface. Pour tester, vous pouvez envoyer des requêtes via Postman.  
 
 Tout d'abord, le **gateway** agit comme une façade unique qui redirige les requêtes des utilisateurs vers les différents services internes. Il distribue les requêtes en fonction de la route ou du type de service demandé, ce qui facilite la gestion du trafic vers les services appropriés sans que le client ait à connaître l'architecture sous-jacente.
 
