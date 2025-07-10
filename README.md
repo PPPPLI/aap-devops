@@ -1,8 +1,5 @@
 # Docker - Microservices - Order - Payment - Product - E-commerce project
 
-## **Si vous voulez tester directement le projet, ici le lien sur Azure Cloud: http://40.66.40.168/home** (Si le serveur est disponible)
-N.B. Le projet n'accepte momentanement que la version ordinateur, veuillez utiliser un navigateur sur l'ordinateur s'il vous plaît.
-
 <h3><b>Introduction</b></h3>
 
 Ce projet est un simple système de e-commerce. Il contient au total 4 services principaux(Authentification, Commande, Paiement, Produit), 1 Mysql, 1 Redis, 1 Gateway ainsi que 1 centre de gestion et d'orchestration des servies.
@@ -27,31 +24,6 @@ N.B. Tous les services sont inscrits dans un **centre de gestion et d'orchestrat
 
 
 <br>
-
-## **Démarrage classique**
-
-1. Colon ce repository
-2. Modifier la configuration pour la partie de datasource en fonction de paramètres locaux lié à votre propre base de données(username, password...)
-   
-   ![image](https://github.com/user-attachments/assets/003af4a1-d0bc-4f89-b3c7-4f6bd4c9c0b4)
-
-3. Démarrer Consul service
-4. Démarrer Redis server
-5. Démarrer les 5 services repectivement sauf le module Common
-
-## **Démarrage en Docker**
-
-1. Phase préparatoire
-   
-   - Pull de Docker Hub les images nécessaires : mysql:8.0 | consul:1.15.4 | redis:7.4
-   - Classifier les fichiers Jars, Dockerfiles et docker-compose.yml en suivant la structure dessous
-
-   ![image](https://github.com/user-attachments/assets/a1950bff-5ba4-4428-9051-220f6f46cc11)
-
-
-2. Phase d'exécution
-
-   - Lancer la commande "docker compose up --build -d" au chemin /docker
 
 ## **URL d'api-doc**
 
