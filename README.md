@@ -6,6 +6,7 @@ Veuillez trouver les fichiers clés dans ce dépôt:
 
   - Tutoriel d'utilisation: Tutoriel_utilisation.pdf
   - Capture d'écran sur différente scénarios: Captures
+  - Fichiers DockerFile et docker-compose.yml: Docker
 
 Ce projet est un simple système de e-commerce. Il contient au total 4 services principaux(Authentification, Commande, Paiement, Produit), 1 Mysql, 1 Redis, 1 Gateway ainsi que 1 centre de gestion et d'orchestration des servies. Malheuresement, il est un projet du côté serveur, et il ne posséde pas d'une jolie interface. Pour tester, vous pouvez envoyer des requêtes via Postman.  
 
