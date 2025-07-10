@@ -1,0 +1,125 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_back
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 3333
+      MYSQL_DATABASE: microservices
+      MYSQL_USER: user
+      MYSQL_PASSWORD: 3333
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - backend_net
+
+  consul:
+    image: consul:1.15.4
+    container_name: consul_back
+    restart: always
+    ports:
+      - "8500:8500"
+    command: "consul agent -dev -client=0.0.0.0"
+    networks:
+      - backend_net
+
+  redis:
+    image: redis:7.4
+    container_name: redis_back
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/var/lib/redis
+    command: ["redis-server","--requirepass","3333"]
+    networks:
+      - backend_net
+
+  authentication_service:
+    image: 34.155.208.12:8080/devops_cicd/authentication-8083:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile_Auth
+    container_name: auth-service
+    depends_on:
+      - mysql
+      - consul
+    ports:
+      - "8083:8083"
+    restart: always
+    networks:
+      - backend_net
+
+  gateway_service:
+    image: 34.155.208.12:8080/devops_cicd/gateway-9090:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile_Gateway
+    container_name: gateway-service
+    ports:
+      - "9090:9090"
+    depends_on:
+      - consul
+    restart: always
+    networks:
+      - backend_net
+
+  order_service:
+    image: 34.155.208.12:8080/devops_cicd/order-8082:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile_Order
+    container_name: order-service
+    depends_on:
+      - consul
+      - redis
+      - mysql
+    ports:
+      - "8082:8082"
+    restart: always
+    networks:
+      - backend_net
+
+  payment_service:
+    image: 34.155.208.12:8080/devops_cicd/payment-8081:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile_Payment
+    container_name: payment-service
+    depends_on:
+      - consul
+      - mysql
+    ports:
+      - "8081:8081"
+      - "9000:9000"
+    restart: always
+    networks:
+      - backend_net
+
+  product_service:
+    image: 34.155.208.12:8080/devops_cicd/product-8080:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile_Product
+    container_name: product-service
+    depends_on:
+      - consul
+      - mysql
+    ports:
+      - "8084:8084"
+      - "9091:9091"
+    restart: always
+    networks:
+      - backend_net
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  backend_net:
+    driver: bridge

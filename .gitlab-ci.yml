@@ -1,0 +1,198 @@
+stages:
+  - build
+  - test
+  - docker
+  - deploy
+
+variables:
+  GIT_DEPTH: 0
+  MAVEN_CLI_OPTS: "--batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  DOCKER_TAG: $CI_COMMIT_SHORT_SHA
+
+
+cache:
+  paths:
+    - .m2/repository
+
+
+# Services build
+build_authentication:
+  image: maven:3.9-eclipse-temurin-17
+  stage: build
+  tags:
+    - payment
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl Authentication-8083 -am clean install -DskipTests
+  artifacts:
+    paths:
+      - Authentication-8083/target/*.jar
+    expire_in: 1 hour
+
+build_gateway:
+  image: maven:3.9-eclipse-temurin-17
+  stage: build
+  tags:
+    - payment
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl Gateway-9090 -am clean install -DskipTests
+  artifacts:
+    paths:
+      - Gateway-9090/target/*.jar
+    expire_in: 1 hour
+
+build_order:
+  image: maven:3.9-eclipse-temurin-17
+  stage: build
+  tags:
+    - payment
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl Order-8082 -am clean install -DskipTests
+  artifacts:
+    paths:
+      - Order-8082/target/*.jar
+    expire_in: 1 hour
+
+build_payment:
+  image: maven:3.9-eclipse-temurin-17
+  stage: build
+  tags:
+    - payment
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl Payment-8081 -am clean install -DskipTests
+  artifacts:
+    paths:
+      - Payment-8081/target/*.jar
+    expire_in: 1 hour
+
+build_product:
+  image: maven:3.9-eclipse-temurin-17
+  stage: build
+  tags:
+    - payment
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl Product-8080 -am clean install -DskipTests
+  artifacts:
+    paths:
+      - Product-8080/target/*.jar
+    expire_in: 1 hour
+
+#SonarQube Analysis
+test:
+  image: maven:3.9-eclipse-temurin-17
+  stage: test
+  tags:
+    - payment
+
+  script:
+
+    - echo "Running SonarQube analysis"
+    - mvn $MAVEN_CLI_OPTS clean verify  sonar:sonar -Dsonar.projectKey=order-payment -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
+
+
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Docker image build and push
+docker_build_push:
+  image: docker:24.0.7
+  stage: docker
+  tags:
+    - payment
+  services:
+    - name: docker:24.0.7-dind
+      command: ["--insecure-registry=34.155.208.12:8080"]
+  dependencies:
+    - build_authentication
+    - build_gateway
+    - build_order
+    - build_payment
+    - build_product
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "Logging into Docker registry"
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin $DOCKER_REGISTRY
+    - echo "Building & pushing images with tag $DOCKER_TAG"
+    - |
+      for dir in Authentication-8083 Gateway-9090 Order-8082 Payment-8081 Product-8080; do
+        SERVICE=$(echo $dir | cut -d'-' -f1 | sed 's/Authentication/Auth/')
+        IMAGE_NAME=$(echo $dir | tr '[:upper:]' '[:lower:]')
+        echo "Building $IMAGE_NAME using Docker/Dockerfile_${SERVICE}"
+        docker build -t $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG \
+          -f Docker/Dockerfile_${SERVICE} $dir
+        docker push $DOCKER_REGISTRY/$DOCKER_NAMESPACE/$IMAGE_NAME:$DOCKER_TAG
+      done
+  only:
+    - main
+
+
+# Deploy
+deploy_to_server:
+  stage: deploy
+  tags:
+    - payment
+  before_script:
+    - apt-get update && apt-get install -y openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+  script:
+    - echo "Generating .env"
+    - echo "IMAGE_TAG=$CI_COMMIT_SHORT_SHA" > Docker/.env
+
+    - echo "Sending files to server"
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p /home/$DEPLOY_USER/app"
+    - scp Docker/docker-compose.yml $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
+    - scp Docker/.env $DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/app/
+
+    - echo "Remote docker-compose up"
+    - |
+      ssh $DEPLOY_USER@$DEPLOY_HOST <<EOF
+        cd /home/$DEPLOY_USER/app
+        docker compose pull
+        docker compose up -d
+      EOF
+  only:
+    - main
+
+#Notification when success
+discord_notify_success:
+  image: curlimages/curl:latest
+  stage: deploy
+  tags:
+    - payment
+  needs:
+    - job: deploy_to_server
+  script:
+    - >
+      curl -H "Content-Type: application/json" \
+           -X POST \
+           -d "{\"content\": \"Le projet a été déployé avec succès ! Tag : $CI_COMMIT_SHORT_SHA\"}" \
+           $DISCORD_WEBHOOK
+  only:
+    - main
+  when: on_success
+
+#Notification when failed
+discord_notify_failure:
+  image: curlimages/curl:latest
+  stage: deploy
+  tags:
+    - payment
+  needs:
+    - job: deploy_to_server
+  script:
+    - >
+      curl -H "Content-Type: application/json" \
+           -X POST \
+           -d "{\"content\": \"Le déploiement a échoué. Commit : $CI_COMMIT_SHORT_SHA\"}" \
+           $DISCORD_WEBHOOK
+  only:
+    - main
+  when: on_failure
+  allow_failure: true
