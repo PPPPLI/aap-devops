@@ -14,7 +14,6 @@ jobs:
       matrix:
         service:
           - Authentication-8083
-          - Common
           - Gateway-9090
           - Order-8082
           - Payment-8081
@@ -29,6 +28,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+
+
+      - name: Install Common module
+        working-directory: Common
+        run: mvn -B clean install
+
 
       - name: Build microservice
         working-directory: ${{ matrix.service }}
