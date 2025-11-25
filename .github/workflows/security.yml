@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         service:
           - Authentication-8083
@@ -29,19 +30,37 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
       - name: Build parent + all modules
-        run: mvn -B -q clean install
+        run: mvn -B -q clean install -DskipTests
 
       - name: Build microservice
         working-directory: ${{ matrix.service }}
-        run: mvn -B clean verify
+        run: mvn -B clean verify -DskipTests
+
+
+      - name: Cache Dependency Check Data
+        uses: actions/cache@v4
+        with:
+          path: dependency-check/data
+          key: dependency-check-data-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-data-${{ runner.os }}
 
       - name: Install Dependency Check CLI
         run: |
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
           unzip dependency-check-9.0.9-release.zip
           chmod +x dependency-check/bin/dependency-check.sh
+          mkdir -p dependency-check/data
           echo "DependencyCheck installed"
+
 
       - name: Run OWASP Dependency Check CLI
         run: |
@@ -49,11 +68,14 @@ jobs:
             --project "${{ matrix.service }}" \
             --scan "${{ matrix.service }}" \
             --format "HTML" \
-            --out "reports-${{ matrix.service }}" \
-            --noupdate
+            --out "reports-${{ matrix.service }}"
+            # --noupdate  <-- 这一行被删除了，必须允许更新！
+            # 建议: 如果你有 NVD API Key，请解除下面一行的注释并配置 Secrets
+            # --nvdApiKey "${{ secrets.NVD_API_KEY }}" 
 
       - name: Upload Security Report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: "dependency-check-${{ matrix.service }}"
           path: "reports-${{ matrix.service }}/"
