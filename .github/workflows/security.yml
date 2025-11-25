@@ -36,14 +36,21 @@ jobs:
         working-directory: ${{ matrix.service }}
         run: mvn -B clean verify
 
-      - name: OWASP Dependency Check
-        uses: owasp/dependency-check-action@v3
-        with:
-          project: ${{ matrix.service }}
-          path: ${{ matrix.service }}
-          format: "HTML"
-          out: "reports-${{ matrix.service }}"
-          args: "--noupdate"
+      - name: Install Dependency Check CLI
+        run: |
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
+          unzip dependency-check-9.0.9-release.zip
+          chmod +x dependency-check/bin/dependency-check.sh
+          echo "DependencyCheck installed"
+
+      - name: Run OWASP Dependency Check CLI
+        run: |
+          dependency-check/bin/dependency-check.sh \
+            --project "${{ matrix.service }}" \
+            --scan "${{ matrix.service }}" \
+            --format "HTML" \
+            --out "reports-${{ matrix.service }}" \
+            --noupdate
 
       - name: Upload Security Report
         uses: actions/upload-artifact@v4
