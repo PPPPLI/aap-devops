@@ -1,4 +1,4 @@
-name: Microservices Security CI (Snyk)
+name: Microservices DevSecOps Pipeline
 
 on:
   push:
@@ -7,7 +7,25 @@ on:
     branches: ["main"]
 
 jobs:
-  snyk-scan:
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_ENABLE_SUMMARY: true
+
+
+  build-and-security-scan:
+    needs: secret-scan
     runs-on: ubuntu-latest
 
     strategy:
@@ -49,13 +67,24 @@ jobs:
           npm install -g snyk snyk-to-html
           snyk auth ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk Security Scan
-        run: |
-          echo "Scanning ${{ matrix.service }}..."
-          snyk test --file=${{ matrix.service }}/pom.xml --json | snyk-to-html -o snyk-report-${{ matrix.service }}.html || true
 
-      - name: Upload Snyk Report
+      - name: Run SCA (Dependency Scan)
+        run: |
+          echo "Running SCA on ${{ matrix.service }}..."
+          # || true prevents the build from stopping, allowing SAST to run next
+          snyk test --file=${{ matrix.service }}/pom.xml --json | snyk-to-html -o sca-report-${{ matrix.service }}.html || true
+
+
+      - name: Run SAST (Code Scan)
+        run: |
+          echo "Running SAST on ${{ matrix.service }}..."
+          # Snyk Code analyzes the source code folder
+          snyk code test ${{ matrix.service }} --json | snyk-to-html -o sast-report-${{ matrix.service }}.html || true
+
+      - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-report-${{ matrix.service }}
-          path: snyk-report-${{ matrix.service }}.html
+          name: security-reports-${{ matrix.service }}
+          path: |
+            sca-report-${{ matrix.service }}.html
+            sast-report-${{ matrix.service }}.html
