@@ -30,10 +30,8 @@ jobs:
           java-version: 17
 
 
-      - name: Install Common module
-        working-directory: Common
-        run: mvn -B clean install
-
+      - name: Build parent + all modules
+        run: mvn -B -q clean install
 
       - name: Build microservice
         working-directory: ${{ matrix.service }}
