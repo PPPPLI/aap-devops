@@ -1,0 +1,49 @@
+name: Microservices Security CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - Authentication-8083
+          - Common
+          - Gateway-9090
+          - Order-8082
+          - Payment-8081
+          - Product-8080
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build microservice
+        working-directory: ${{ matrix.service }}
+        run: mvn -B clean verify
+
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: ${{ matrix.service }}
+          path: ${{ matrix.service }}
+          format: "HTML"
+          out: "reports-${{ matrix.service }}"
+
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: "dependency-check-${{ matrix.service }}"
+          path: "reports-${{ matrix.service }}/"
