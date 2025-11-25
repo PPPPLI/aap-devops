@@ -1,4 +1,4 @@
-name: Microservices Security CI
+name: Microservices Security CI (Snyk)
 
 on:
   push:
@@ -7,40 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-
-  prepare-dependency-check-data:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Install Dependency Check CLI
-        run: |
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-          unzip dependency-check-9.0.9-release.zip
-          chmod +x dependency-check/bin/dependency-check.sh
-          echo "DependencyCheck installed"
-
-      - name: Restore/Cache Dependency Check Data
-        uses: actions/cache@v4
-        id: dep-check-cache
-        with:
-          path: dependency-check/data
-          key: dependency-check-data-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            dependency-check-data-${{ runner.os }}
-
-
-      - name: Update NVD Database
-        run: |
-          dependency-check/bin/dependency-check.sh --updateonly
-  
-
-  build-and-scan:
-    needs: prepare-dependency-check-data
+  snyk-scan:
     runs-on: ubuntu-latest
 
     strategy:
@@ -73,36 +40,19 @@ jobs:
       - name: Build parent + all modules
         run: mvn -B -q clean install -DskipTests
 
-      - name: Build microservice
-        working-directory: ${{ matrix.service }}
-        run: mvn -B clean verify -DskipTests
-
-      - name: Install Dependency Check CLI
+      - name: Install Snyk & Snyk-to-Html
         run: |
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-          unzip dependency-check-9.0.9-release.zip
-          chmod +x dependency-check/bin/dependency-check.sh
+          npm install -g snyk snyk-to-html
+          snyk auth ${{ secrets.SNYK_TOKEN }}
 
-      - name: Restore Dependency Check Data
-        uses: actions/cache/restore@v4
-        with:
-          path: dependency-check/data
-          key: dependency-check-data-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            dependency-check-data-${{ runner.os }}
 
-      - name: Run OWASP Dependency Check CLI
+      - name: Run Snyk Security Scan
         run: |
-          dependency-check/bin/dependency-check.sh \
-            --project "${{ matrix.service }}" \
-            --scan "${{ matrix.service }}" \
-            --format "HTML" \
-            --out "reports-${{ matrix.service }}" \
-            --noupdate
+          echo "Scanning ${{ matrix.service }}..."
+          snyk test --file=${{ matrix.service }}/pom.xml --json | snyk-to-html -o snyk-report-${{ matrix.service }}.html || true
 
-      - name: Upload Security Report
+      - name: Upload Snyk Report
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: "dependency-check-${{ matrix.service }}"
-          path: "reports-${{ matrix.service }}/"
+          name: snyk-report-${{ matrix.service }}
+          path: snyk-report-${{ matrix.service }}.html
